@@ -1,0 +1,7 @@
+#!/bin/bash
+
+cd DATA
+for j in */*; do cp ../blank $j; done
+cd ..
+rm artlabels/*
+
