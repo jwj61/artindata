@@ -16,7 +16,8 @@ load "nfdb.m";
 //Process(x^17 - 2*x^16 + 8*x^13 + 16*x^12 - 16*x^11 + 64*x^9 - 32*x^8 - 80*x^7 + 32*x^6 + 40*x^5 + 80*x^4 + 16*x^3 - 128*x^2 - 2*x + 68);
 
 //ProcessNFDBdatFile(LMFDBdir*"nfdb_bordeaux.dat"); // Bordeaux database
-ProcessDirectory(OldArtdir);
+//ProcessDirectory(OldArtdir);
+ProcessDirectory(Completedir);
 
 //IndexDatabase();
 //ExportToJSON(: test:=false);
