@@ -6,8 +6,8 @@ load mmylib;
 
 //Masterdir:="F:\\LMFDB\\Source";
 //LMFDBdir:="F:\\LMFDB\\";
-Masterdir:="/home/jj/data/artindata/Source";
-LMFDBdir:="/home/jj/data/artindata/";
+Masterdir:="/home/jj/lmfdb/art3/Source";
+LMFDBdir:="/home/jj/lmfdb/art3/";
 
 DATAdir:=LMFDBdir*"DATA/";
 SrcNFDBdir:=LMFDBdir*"NFDB/";
@@ -92,54 +92,6 @@ function SortPolyList(list)
 end function;
 
 
-procedure Bordeaux(maxcount)
-  "Processing Bordeaux database number fields";
-  dirname:=SrcNFDBdir*"Bordeaux/";
-  outfile:=LMFDBdir*"nfdb_bordeaux.dat";
-  list:=[];
-  for filename in FindFiles(dirname,".gp") do
-    count:=0;
-    for s in Split(Read(dirname*filename)) do
-      d,cfs,h,cyc:=Explode(eval "<"*s[[2..#s-1]]*">");
-      pol:=R!Reverse(cfs);
-      Append(~list,pol);
-      count+:=1;
-      if count eq maxcount then break; end if;
-    end for;
-  end for; 
-  list:=SortPolyList(list);
-  #list,"number fields";
-  Rewrite(outfile);
-  write(outfile,"// Database of Bordeaux number fields");
-  write(outfile,"// of discriminant <10^6 or 2*10^6\n");
-  for s in list do  
-    write(outfile,DelSpaces(s): con:=false);
-  end for;
-end procedure;
-
- 
-procedure Jones()
-  "Processing Jones database number fields";
-  dirname:=SrcNFDBdir*"Jones/";
-  outfile:=LMFDBdir*"nfdb_jones.dat";
-  list:=[];
-  for filename in FindFiles(dirname,".gp") do
-    try
-      list cat:= eval Read(dirname*filename);
-    catch e 
-      filename,"failed to read";
-    end try;   
-  end for;
-  list:=SortPolyList(list);
-  #list,"number fields";
-  Rewrite(outfile);
-  write(outfile,"// Database of Jones number fields");
-  write(outfile,"// Ramified/Unramified outside of a small set S\n");
-  for s in list do  
-    write(outfile,DelSpaces(s): con:=false);
-  end for;
-end procedure;
-
 
 function FrobResData(d,c)
   if Type(d) eq RngIntElt then
@@ -182,85 +134,6 @@ procedure PolyIndex(f,~I,~j,force)
   j:=#I;
   return;
 end procedure;
-
-
-function ArtinRepData(A)
-  vprint ArtRep,3: "ArtinRepData", Dimension(A);
-  dim:=Dimension(A);
-  vprint ArtRep,3: "Conductor of",A;
-  cond:=Conductor(A);
-  factcond:=PrintFactor(cond);
-  // For labels
-  factcond1:=ReplaceStringFunc(factcond,["*","^"],["t","e"]);
-  vprint ArtRep,3: "Conductor done";
-  ch:=Character(A);
-  K:=BaseRing(ch);
-  n:=CyclotomicOrder(K);
-  data:=A`K`artinrepdata;
-  CC:=data`CC;
-  PolK:=PR(K);
-  I:=[];
-  for c in CC do
-    PolyIndex(PolK!CharacterCharPoly(ch,c),~I,~j,true);
-  end for;
-  bads:=[];
-  badprimes:=Sort(SetToSequence(Set(data`badprimes) join
-    Set(PrimeDivisors(Discriminant(data`f)))));
-  for p in badprimes do 
-    //"EulerFactor",A,"at",p;
-    PolyIndex(EulerFactor(A,p: R:=K),~I,~j,false); Append(~bads,j);
-  end for;  
-  badpr:=[Sprint(b): b in badprimes];
-  ind:=FrobeniusSchurIndicator(Character(A));
-  RF:=RealField(10);   
-  CF<i>:=ComplexField(10);   
-  mindegrep:=minnt(data`G, ch);
-  if mindegrep[2] eq 0 then 
-    mindegrep:=Sprintf("%o", mindegrep[1]);
-  else
-    mindegrep:=Sprintf("%ot%o", mindegrep[1],mindegrep[2]);
-  end if;
-  if IsFaithful(ch) then
-    Gsize := Order(data`G);
-    gorbsize := #GaloisOrbit(ch);
-    labelbase := Sprintf("%o.%o.%o.%o.%o", dim,factcond1,Gsize,gorbsize,mindegrep);
-  else
-    amin := Minimize(A);
-    Gsize := Order(amin`K`artinrepdata`G);
-    labelbase:="notfaithful";
-  end if;
-  //"Label base: ", labelbase;
-
-  sign:=0;
-  lval1:=0;
-  lval2:=0;
-  vprint ArtRep,3: "Sign and L-values";
-  if computesign and (cond ne 1) and (cond lt 10^30) then
-    vprint ArtRep,3: "L-values: conductor ",cond;   
-    L:=LSeries(A: Precision:=13);
-    vprint ArtRep,3: "L-series initialized";   
-    if LCfRequired(L) lt MaxLCf then
-      vprint ArtRep,3: "Needed",LCfRequired(L),"coefficients";
-      ok:=CheckFunctionalEquation(L);
-      vprint ArtRep,3: "CheckFunEq:",ok;
-      error if Abs(ok) gt 1E-4, "CheckFunctionalEquation failed";
-      sign:=CF!Sign(L);
-      vprint ArtRep,3: "Sign:",sign;
-      lval1:=cond eq 1 select 0 else CF!Evaluate(L,1);
-      vprint ArtRep,3: "L(1)=",lval1;
-      lval2:=CF!Evaluate(L,2);
-      vprint ArtRep,3: "L(2)=",lval2;
-    end if;
-  elif computesign and (cond eq 1) then
-    sign:=1;
-    lval1:=0;
-    lval2:=Pi(RF)^2/6;        
-  end if;  
-  char:=[PrintRelExtElement(x): x in Eltseq(ch)];
-  vprint ArtRep,2: "Sign and L-values done";
-  return <Sprintf("%o,%o,%o,%o,%o,%o,%o,%o,%o",
-    dim,factcond,n,char,I,badpr,bads,ind,[sign,lval1,lval2]),labelbase>;
-end function;
 
 
 function FieldExists(F)
@@ -320,182 +193,6 @@ function HardPrimes(F)
   P:=Sort([p: p in P | p lt 10^50]);
   return P;
 end function;
-
-
-function Process(F)
-  R<x>:=PR(Q);  
-  if Type(F) eq RngUPolElt then
-    if F in SkipPolys then error "Skipping"; end if;
-    F:=NumberField(F); 
-  end if;
-  if Type(F) eq FldRat then
-    // F:=RationalsAsNumberField();
-    F:=NumberField(x: DoLinearExtension);
-  end if;
-  fF:=FieldExists(F);
-  if fF ne 0 then return fF; end if;
-  "Process: ",DelSpaces(DefiningPolynomial(F));
-
-  f:=DefiningPolynomial(F);
-  O:=IntegerRing(F);
-  ODisc:=Discriminant(O);
-  A:=ArtinRepresentations(F: Ramification:=true);
-  ArtKernels:=[];
-  ArtIndices:=[];
-  for c in A do
-    if not IsFaithful(Character(c)) then
-      vprint ArtRep,2: "Starting minimize";
-      cmin:=Minimize(c);
-      vprint ArtRep,2: "Minimized finished";
-      if IsIsomorphic(cmin`K,F) then
-        error "Minimize failed";
-      end if;
-      Append(~ArtKernels,Process(PolRedAbs(DefiningPolynomial(cmin`K))));
-    else
-      cmin:=c;
-      Append(~ArtKernels,0);
-    end if;
-// Want to look up labels here
-    Append(~ArtIndices,Position(cmin`K`artinrepdata`C,Character(cmin)));
-  end for;
-  //"Processing",DelSpaces(R!f);
-  D:=F`artinrepdata;
-  G:=D`G;
-  galnt,n:=TransitiveGroupIdentification(G);
-  galnt:=[n,galnt];
-  CC:=ConjugacyClasses(G);
-  Qpr<a>:=Parent(D`r[1]);
-  Qprdeg:=AbsoluteDegree(Qpr);
-  QprM:=Qprdeg eq 1 select R.1-1 else R!MinimalPolynomial(Qpr.1);
-  gToCC:=ClassMap(G);
-  sign1,sign2:=Signature(F);
-
-  vprint ArtRep,2: "Frobenii up to",FrobHigh,"and hard primes";
-  for p in FrobHighPrimes cat HardPrimes(F) do
-    frob:=FrobeniusElement(F,p);
-  end for;  
-
-  vprint ArtRep,3: "GroupName";
-  GName:=GroupName(G);
-  artreps:= [ArtinRepData(a): a in A];
-  labels:= [<z[2],0> : z in artreps];
-  artreps:= [z[1] : z in artreps];
-  gorbs := galorbs(A);
-  for j:=1 to #gorbs do
-    if labels[gorbs[j][1]][1] ne "notfaithful" then
-      k:=labelcount(labels[gorbs[j][1]][1]);
-      newlabel := Sprintf("%o.%o",labels[gorbs[j][1]][1], k);
-      if #gorbs[j] gt 1 then
-        for jj:=1 to #gorbs[j] do
-          labels[gorbs[j][jj]] := <newlabel,jj>;
-        end for;
-      else
-        labels[gorbs[j][1]] := <newlabel,1>;
-      end if;
-    end if;
-  end for;
-  for j:=1 to #artreps do
-    artreps[j] := Sprintf("<%o,<\"%o\",%o>,%o>", artreps[j], labels[j][1],labels[j][2],galnt);
-  end for;
-
-  vprint ArtRep,3: "Data";
-  s:=Sprintf("%o$%o$%o$%o$%o$\"%o\"$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o$%o",
-    f,                                       // Defining polynomial
-    PrintFactor(ODisc),                      // Discriminant
-    sign1,                                   // r1=#real embeddings
-    sign2,                                   // r2=#complex pairs of embeddings
-    #G,                                      // Size of G
-    GName,                                   // Name of G
-    [Eltseq(g): g in Generators(G)],         // Generators of G
-    [<c[1],c[2],Eltseq(c[3])>: c in CC],     // CC (Conjugacy Classes)
-    D`cycs,                                  // cycle types
-    Characteristic(ResidueClassField(Qpr)),  // p
-    DelSpaces(QprM),                         // Min poly of Qp unr ext
-    Min([Precision(r): r in D`r]),           // p-adic precision
-    [PrintRelExtElement(x): x in D`r],          // roots
-    gToCC(FrobeniusElement(F,Infinity())),   // CC of complex conjugation
-    [gToCC(FrobeniusElement(F,p)): p in PrimesUpTo(MaxFrobP)],
-                                             // Frobenius elements
-    [FrobResData(D`Inv[i],D`cycs[i]): i in [1..#D`Inv]],
-                                             // Frobenius resolvents
-    [*ArtinLocalData(loc): loc in D`localdata*],   // Ramification data
-    ArtKernels,                              // Indices of base fields of ArtReps
-    ArtIndices,                              // and of the representations in
-                                             //    their character tables
-    gorbs,  // Galois orbit of characters
-    artreps,               // Artin Representations themselves
-  "");
-  s:=ReplaceStringFunc(DelSpaces(s),"$"," ");
-  filename:=NF2File(F);
-  write(filename,s: con:=false);
-  "Added",DelSpaces(f);
-  return f;
-end function;
-
-
-procedure ProcessT(f)
-  try
-    _:=Process(f);
-  catch e
-    write(errfile,"Failed "*DelSpaces(f)*" "*DelCRs(Sprint(e`Object)));
-  end try;  
-end procedure;
-
-
-procedure ProcessSmallFields(bound)
-  
-  "Q";
-  _:=Process(NumberField(Rationals()));
-  
-  "Quadratic fields";
-  for d in [1..Round(bound^(3/2))], sgn in [-1,1] do
-    n:=sgn*d;
-    if (n eq 1) or not IsSquarefree(n) then continue; end if;
-    ProcessT(QuadraticField(n));
-  end for;
-
-  "TransitiveGroupsDatabase";
-  for n in [2..Min(15,Round(Sqrt(2*bound)))] do
-  for i:=1 to NumberOfTransitiveGroups(n) do
-    Sprintf("TRANS(%o,%o)",n,i);
-    G:=TransitiveGroup(n,i);
-    if #G ge 10000 then continue; end if;
-    ProcessT(PolynomialWithGaloisGroup(n,i));
-  end for;
-  end for;
-
-/*
-  "Cyclotomic fields";
-  for d in [3..bound] do
-    K:=CyclotomicField(d);
-    for U in Subfields(K) do
-      ProcessT(DefiningPolynomial(U[1]));
-    end for;
-  end for;
-*/
-
-/*
-  "Kummer extensions";
-  for d in [2..Round(Sqrt(2*bound))] do
-  for m in [2..bound] do
-    if IsIrreducible(x^d-m) then
-      ProcessT(x^d-m);
-    end if;
-  end for;
-  end for;
-*/
-
-end procedure;
-
-
-procedure ProcessNFDBdatFile(filename)
-  "Processing NFDB file:",filename;
-  for data in Split(Read(filename)) do
-    if (#data le 1) or (data[1] eq "/") then continue; end if;
-    f:=eval data;
-    ProcessT(f);
-  end for;
-end procedure;
 
 
 procedure IndexDatabase()
@@ -862,19 +559,6 @@ procedure CreatePGLExtensions()
 end procedure;
 
 
-procedure ProcessPGLExtensions(: easy:=false)
-  list:=easy select [3..7] cat [10,11] else [3..11];
-  for d in list do
-    filename:=PGLdir*Sprint(d)*".dat";
-    "Processing: EC PGL",d;
-    for data in Split(Read(filename)) do
-      if (#data eq 0) or (data[1] eq "/") then continue; end if;
-      f:=eval data;
-      ProcessT(f);
-    end for;
-  end for;
-end procedure;
-
 
 procedure CreateSmallCoefficients(d,B)
   maxb:=0;
@@ -913,20 +597,6 @@ procedure CreateSmallCoefficients(d,B)
   end for;
 end procedure;
 
-
-procedure ProcessSmallCoefficients()
-  for d in [1..20] do
-  for B in [1..50] do
-    filename:=Sprintf("%od%oB%o.dat",Smalldir,d,B);
-    ok,D:=ReadTest(filename);
-    if not ok then continue; end if;
-    "Processing smallcfs:",filename;
-    for f in Split(D) do 
-      ProcessT(eval f);
-    end for;
-  end for;
-  end for;
-end procedure;
 
 
 function Shorts(L,max)
@@ -983,19 +653,6 @@ procedure CreateWreathProducts()
   GenerateWreath("x^2-d","y^8-v",5,10,8);
 end procedure;
 
-
-procedure ProcessWreathProducts()
-  "Processing: Wreath products";
-  list:=[];
-  for filename in FindFiles(Wreathdir,".dat") do
-    list cat:= [eval f: f in Split(Read(Wreathdir cat filename))];
-  end for;
-  "Found",#list,"polynomials";
-  list:=SortPolyList(list);
-  for f in list do
-    ProcessT(f);
-  end for;
-end procedure;
 
 
 procedure CreateGL2Extensions()
@@ -1128,24 +785,6 @@ procedure CreateFamilies()
   end for;
 end procedure;
 
-
-procedure ProcessDirectory(dir)
-  "Processing directory:",dir;
-  for filename in FindFiles(dir,".dat": full:=true) do 
-    print filename;
-    ProcessNFDBdatFile(filename);
-  end for;
-end procedure;
-
-
-procedure ProcessBosman()
-  ProcessT(x^17 - 5*x^16 + 12*x^15 - 28*x^14 + 72*x^13 - 132*x^12 + 116*x^11 - 74*x^9
-    + 90*x^8 - 28*x^7 - 12*x^6 + 24*x^5 - 12*x^4 - 4*x^3 - 3*x - 1);
-  ProcessT(x^17 + x^16 - 4*x^15 - 2*x^14 + 54*x^13 + 6*x^12 - 36*x^11 - 16*x^10 + 714*x^9
-    - 1238*x^8 + 484*x^7 + 764*x^6 - 1084*x^5 - 520*x^4 + 668*x^3 + 776*x^2 + 382*x + 74);
-  ProcessT(x^17 + x^16 + 18*x^15 + 10*x^14 + 194*x^13 + 250*x^12 + 442*x^11 + 1006*x^10 + 1176*x^9
-    - 392*x^8 + 1178*x^7 + 4490*x^6 + 4790*x^5 + 1606*x^4 + 286*x^3 + 38*x^2 + 25*x + 1);
-end procedure;
 
 
 function PrintLarge(n)
@@ -1368,7 +1007,7 @@ PSL_2(p) Shih's theorem
 IndexDatabase();
 
 
-Process(x^4-2);
+/*
 Process(x^8+2);
 Process(x^8-2);
 Process(x^8-3);
@@ -1376,6 +1015,8 @@ Process(x^7 - 3*x^6 + 3*x^5 - 3*x^4 + 3*x^3 - 3*x^2 + 10*x - 9);
 //ProcessNFDBdatFile(LMFDBdir*"tmp1.dat");    // 
 ProcessNFDBdatFile(LMFDBdir*"nfdb_bordeaux.dat"); // Bordeaux database
 ProcessDirectory(OldArtdir);
+
+*/
 
 //  Export the database to json, write statistics to stats.inc
 

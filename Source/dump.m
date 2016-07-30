@@ -4,8 +4,9 @@
 
 load "nfdb.m";
 
+/*
+*/
 IndexDatabase();
-
 
 //  Export the database to json, write statistics to stats.inc
 
